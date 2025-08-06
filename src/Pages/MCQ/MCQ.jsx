@@ -1,23 +1,56 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import questions from '../../Data/questions';
+import questionsData from '../../data/questionsData';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const MCQ = () => {
   const [searchParams] = useSearchParams();
-  const subject = searchParams.get('subject');
   const navigate = useNavigate();
 
-  const subjectQuestions = questions[subject];
+  const subject = searchParams.get('subject');
+  const year = searchParams.get('year');
+  const board = searchParams.get('board');
+
   const initialTime = 1500;
 
+  const [currentQuestions, setCurrentQuestions] = useState([]);
   const [timeLeft, setTimeLeft] = useState(initialTime);
   const [answers, setAnswers] = useState({});
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (isSubmitted || timeLeft <= 0) {
+    if (subject && year && board) {
+      setLoading(true);
+      setError(null);
+      try {
+        const loadedQuestions = questionsData[subject]?.[year]?.[board];
+        if (loadedQuestions && loadedQuestions.length > 0) {
+          setCurrentQuestions(loadedQuestions);
+          setTimeLeft(initialTime);
+          setAnswers({});
+          setCurrentQuestionIndex(0);
+          setIsSubmitted(false);
+          setLoading(false);
+        } else {
+          setError("No questions found for this subject, year, and board. Please check your selection.");
+          setLoading(false);
+        }
+      } catch (err) {
+        setError("Error loading questions. Please try again.");
+        setLoading(false);
+        console.error("Failed to load questions:", err);
+      }
+    } else {
+      setError("Please select a subject, year, and board to view questions.");
+      setLoading(false);
+    }
+  }, [subject, year, board]);
+
+  useEffect(() => {
+    if (loading || error || isSubmitted || timeLeft <= 0) {
       if (timeLeft <= 0 && !isSubmitted) {
         handleSubmit();
       }
@@ -29,7 +62,7 @@ const MCQ = () => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [timeLeft, isSubmitted]);
+  }, [timeLeft, isSubmitted, loading, error]);
 
   useEffect(() => {
     return () => {
@@ -44,7 +77,6 @@ const MCQ = () => {
 
   const handleAnswerChange = (event) => {
     const questionId = currentQuestionIndex;
-
     if (!answers[questionId]) {
       const newAnswers = { ...answers, [questionId]: event.target.value };
       setAnswers(newAnswers);
@@ -52,7 +84,7 @@ const MCQ = () => {
   };
 
   const handleNextQuestion = () => {
-    if (currentQuestionIndex < subjectQuestions.length - 1) {
+    if (currentQuestionIndex < currentQuestions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
     }
   };
@@ -69,11 +101,12 @@ const MCQ = () => {
       localStorage.removeItem('quizAnswers');
       localStorage.removeItem('quizCurrentIndex');
 
-      navigate('/results', {
+      navigate('/result', {
         state: {
           answers,
-          totalQuestions: subjectQuestions.length,
+          totalQuestions: currentQuestions.length,
           subject,
+          currentQuestions,
         },
       });
     }, 800);
@@ -87,26 +120,40 @@ const MCQ = () => {
       .padStart(2, '0')}`;
   };
 
-  if (!subjectQuestions) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-100 to-purple-200 p-8 flex items-center justify-center">
         <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-lg p-8 text-center border border-gray-200">
-          <p className="text-red-600 font-semibold text-lg">
-            No questions found for this subject.
-          </p>
-          <button
-            onClick={() => navigate('/')}
-            className="mt-6 px-6 py-3 bg-purple-600 text-white rounded-full font-semibold shadow-md hover:bg-purple-700 transition-colors duration-300"
-          >
-            Go back to subjects
-          </button>
+          <p className="text-gray-700 font-semibold text-lg">Loading questions...</p>
         </div>
       </div>
     );
   }
 
-  const allQuestions = Array.from({ length: subjectQuestions.length }, (_, i) => i);
-  const currentQuestion = subjectQuestions[currentQuestionIndex];
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-100 to-purple-200 p-8 flex flex-col items-center justify-center text-center">
+        <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-lg p-8 text-center border border-gray-200">
+          <p className="text-red-600 font-semibold text-lg mb-4">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentQuestions || currentQuestions.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-100 to-purple-200 p-8 flex items-center justify-center">
+        <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-lg p-8 text-center border border-gray-200">
+          <p className="text-red-600 font-semibold text-lg">
+            No questions available for the selected criteria.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const allQuestions = Array.from({ length: currentQuestions.length }, (_, i) => i);
+  const currentQuestion = currentQuestions[currentQuestionIndex];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 to-purple-200 p-4 sm:p-8 flex items-center justify-center">
@@ -115,7 +162,7 @@ const MCQ = () => {
           <h2 className="text-xl sm:text-2xl font-bold capitalize flex flex-col items-center sm:flex-row sm:items-baseline">
             {subject?.replace(/-/g, ' ')} MCQ Test
             <span className="text-sm sm:text-base font-normal text-purple-200 ml-0 sm:ml-4 mt-1 sm:mt-0">
-              (Rajshahi Board 2025)
+              ({board?.replace(/-/g, ' ')} Board {year})
             </span>
           </h2>
           <motion.div
@@ -153,7 +200,7 @@ const MCQ = () => {
             >
               <div className="flex justify-between items-center mb-4">
                 <span className="text-base font-semibold text-gray-600">
-                  Question {currentQuestionIndex + 1} of {subjectQuestions.length}
+                  Question {currentQuestionIndex + 1} of {currentQuestions.length}
                 </span>
               </div>
               <div className="bg-gray-100 rounded-lg p-4 sm:p-6 border border-gray-200">
@@ -235,7 +282,7 @@ const MCQ = () => {
             whileHover={{ scale: 1.03, boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)' }}
             whileTap={{ scale: 0.97 }}
             onClick={
-              currentQuestionIndex === subjectQuestions.length - 1
+              currentQuestionIndex === currentQuestions.length - 1
                 ? handleSubmit
                 : handleNextQuestion
             }
@@ -243,7 +290,7 @@ const MCQ = () => {
             animate={isSubmitted ? { scale: [1, 0.9, 1.1, 0], opacity: [1, 0.5, 0], transition: { duration: 0.8 } } : {}}
             className="px-6 py-3 w-full bg-purple-700 text-white rounded-full font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-purple-800"
           >
-            {currentQuestionIndex === subjectQuestions.length - 1 ? 'Submit' : 'Next'}
+            {currentQuestionIndex === currentQuestions.length - 1 ? 'Submit' : 'Next'}
           </motion.button>
         </div>
       </div>

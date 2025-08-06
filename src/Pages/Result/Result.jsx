@@ -1,19 +1,18 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import questions from '../../Data/questions';
 
 const Result = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { answers, totalQuestions, subject } = location.state || {};
+  const { answers, totalQuestions, subject, currentQuestions } = location.state || {};
 
-  if (!answers || !subject) {
+  if (!answers || !subject || !currentQuestions) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-100 to-purple-200 p-8 flex items-center justify-center">
         <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-lg p-6 text-center">
           <p className="text-red-600 font-semibold text-lg">No result data found. Please take a quiz first.</p>
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/subjects')}
             className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
           >
             Go to Subjects
@@ -23,10 +22,9 @@ const Result = () => {
     );
   }
 
-  const subjectQuestions = questions[subject];
   let correctAnswers = 0;
-  
-  subjectQuestions.forEach((q, index) => {
+
+  currentQuestions.forEach((q, index) => {
     if (answers[index] === q.answer) {
       correctAnswers++;
     }
@@ -60,11 +58,11 @@ const Result = () => {
 
           <div className="mt-8">
             <h3 className="text-xl font-bold text-gray-800 mb-4">Detailed Review</h3>
-            {subjectQuestions.map((q, index) => {
+            {currentQuestions.map((q, index) => {
               const userAnswer = answers[index];
               const isCorrect = userAnswer === q.answer;
               const notAnswered = !answers[index];
-              
+
               return (
                 <div key={index} className={`bg-gray-100 rounded-lg p-4 mb-4 text-left transition-all duration-300 ${
                   isCorrect ? 'border-l-4 border-green-500' : 'border-l-4 border-red-500'
@@ -88,7 +86,7 @@ const Result = () => {
           </div>
 
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/subjects')}
             className="mt-6 px-6 py-3 bg-purple-700 text-white rounded-lg font-semibold hover:bg-purple-800 transition"
           >
             Back To Home
