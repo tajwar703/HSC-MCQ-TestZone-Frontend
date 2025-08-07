@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import questionsData from '../../data/questionsData';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const MCQ = () => {
@@ -21,32 +20,44 @@ const MCQ = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // ✅ Fetch questions from backend
   useEffect(() => {
-    if (subject && year && board) {
-      setLoading(true);
-      setError(null);
-      try {
-        const loadedQuestions = questionsData[subject]?.[year]?.[board];
-        if (loadedQuestions && loadedQuestions.length > 0) {
-          setCurrentQuestions(loadedQuestions);
-          setTimeLeft(initialTime);
-          setAnswers({});
-          setCurrentQuestionIndex(0);
-          setIsSubmitted(false);
-          setLoading(false);
-        } else {
-          setError("No questions found for this subject, year, and board. Please check your selection.");
+    const fetchQuestions = async () => {
+      if (subject && year && board) {
+        setLoading(true);
+        setError(null);
+
+        try {
+          const res = await fetch(
+            `http://localhost:5000/api/questions?subject=${subject}&year=${year}&board=${board}`
+          );
+
+          if (!res.ok) throw new Error('Failed to fetch questions from server');
+
+          const data = await res.json();
+
+          if (data && data.length > 0) {
+            setCurrentQuestions(data);
+            setTimeLeft(initialTime);
+            setAnswers({});
+            setCurrentQuestionIndex(0);
+            setIsSubmitted(false);
+          } else {
+            setError('No questions found for this subject, year, and board.');
+          }
+        } catch (err) {
+          console.error(err);
+          setError('Error loading questions. Please try again.');
+        } finally {
           setLoading(false);
         }
-      } catch (err) {
-        setError("Error loading questions. Please try again.");
+      } else {
+        setError('Please select a subject, year, and board to view questions.');
         setLoading(false);
-        console.error("Failed to load questions:", err);
       }
-    } else {
-      setError("Please select a subject, year, and board to view questions.");
-      setLoading(false);
-    }
+    };
+
+    fetchQuestions();
   }, [subject, year, board]);
 
   useEffect(() => {
@@ -170,19 +181,8 @@ const MCQ = () => {
             transition={{ duration: 1, repeat: Infinity }}
             className="flex items-center space-x-2 bg-white text-purple-700 rounded-full px-3 py-1 shadow-md"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5 sm:h-6 sm:w-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span className="text-lg font-semibold">{formatTime(timeLeft)}</span>
           </motion.div>

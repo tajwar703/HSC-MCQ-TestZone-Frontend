@@ -1,6 +1,5 @@
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
-
 import HeroSection from './Pages/Hero/Hero';
 import Subjects from './Pages/Subjects/Subjects';
 import Years from './Pages/Years/Years';
@@ -17,7 +16,7 @@ const App = () => {
         <Route path="/years" element={<Years />} />
         <Route path="/boards" element={<Boards />} />
         <Route path="/mcq" element={<MCQ />} />
-        <Route path="/result" element={<Result />} /> {/* এখানে '/results' থেকে '/result' করা হয়েছে */}
+        <Route path="/result" element={<Result />} />
       </Routes>
     </Router>
   );
